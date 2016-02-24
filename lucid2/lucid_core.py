@@ -30,7 +30,7 @@ CRITERON_DY_LINEARITY = 90 / MICRON_PER_PIXEL
 CRITERON_DY_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DX_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DY_LOOP_SUP2 = 150 / MICRON_PER_PIXEL
-def find_loop(filename,IterationClosing=6):
+def find_loop(input_data,IterationClosing=6):
      """
         This function detect support (or loop) and return the coordinates if there is a detection,
         and -1 if not.
@@ -48,7 +48,14 @@ def find_loop(filename,IterationClosing=6):
      global pointRef
 #Chargement image
      try :
-       img_ipl= cv.LoadImageM(filename)
+       if type(input_data) == str:
+           #Image filename is passed
+           img_ipl= cv.LoadImageM(input_data)
+       elif type(input_data) == np.ndarray:
+           img_ipl = cv.fromarray(input_data)
+       else:
+           print "ERROR : Input image could not be opened, check format or path"
+           return ("ERROR : Input image could not be opened, check format or path",-10,-10)
      except:
        print "ERROR : Input image could not be opened, check format or path"
        return ("ERROR : Input image could not be opened, check format or path",-10,-10)

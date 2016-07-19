@@ -376,6 +376,8 @@ def integreCont(listInd,seq):
    #buffer initialisation
    seq_tmp=[]
    #iteration number initialisation
+   Xcib = None
+   Ycib = None
    Nite=0
    search = True
    #Y initialisation
@@ -434,9 +436,13 @@ def integreCont(listInd,seq):
       elif(AreaTmp>Area10 and Crit_Mod != CRIT_MOD_NARROW and Crit_Mod != CRIT_MOD_SUP):
         # the loop is ended in order to avoid minimal contous abscissa interference
         search =False
-      Xcib=int(Xcib)
-      Ycib=int(Ycib)              
-   return ("Coord",Xcib,Ycib)         
+      if Xcib is not None and Ycib is not None:
+          Xcib=int(Xcib)
+          Ycib=int(Ycib)
+   if Xcib is None or Ycib is None:
+       return ("No loop detected",-1,-1)
+   else:
+       return ("Coord",Xcib,Ycib)
 def GetCriter(listInd,seq,indMax):
    """ 
    This fonction use contour to determine the type of support and the type of criter to use for get point coord. The determination is based on the shape of counter, specialy the width of counter versus abscissa. There is 4 different Type. Narrow, wich is for Narrow support. SUP wich for support. Loop for     loop, all loop are not detected in this categorie, only one wich have a principal support. And defaut value wich is for all not detected support.

@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 import numpy as np
 import cv
-import sys
+import cv2
+# import sys
 
 # definition des variables Global :
 
@@ -30,7 +31,7 @@ CRITERON_DY_LINEARITY = 90 / MICRON_PER_PIXEL
 CRITERON_DY_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DX_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DY_LOOP_SUP2 = 150 / MICRON_PER_PIXEL
-def find_loop(input_data, IterationClosing=6):
+def find_loop(input_data, IterationClosing=6, rotation=None):
     """
       This function detect support (or loop) and return the coordinates if there is a detection,
       and -1 if not.
@@ -50,59 +51,69 @@ def find_loop(input_data, IterationClosing=6):
     try :
         if type(input_data) == str:
             # Image filename is passed
-            img_ipl = cv.LoadImageM(input_data)
+            if rotation is None:
+                img_ipl = cv2.cv.LoadImageM(input_data)
+            else:
+                img0 = cv2.imread(input_data)
+                rows, cols, layers = img0.shape
+                M = cv2.getRotationMatrix2D((cols / 2, rows / 2), rotation, 1)
+                imgRotated = cv2.warpAffine(img0, M, (cols, rows))
+                # cv2.imshow("Test", dst)
+                # cv2.waitKey(0)
+                img_ipl = cv2.cv.fromarray(imgRotated)
         elif type(input_data) == np.ndarray:
-            img_ipl = cv.fromarray(input_data)
+            img_ipl = cv2.cv.fromarray(input_data)
         else:
-            print "ERROR : Input image could not be opened, check format or path"
+            print("ERROR : Input image could not be opened, check format or path")
             return ("ERROR : Input image could not be opened, check format or path", -10, -10)
     except:
-        print "ERROR : Input image could not be opened, check format or path"
+        raise
+        print("ERROR : Input image could not be opened, check format or path")
         return ("ERROR : Input image could not be opened, check format or path", -10, -10)
     img_cont = img_ipl  # img used for
     NORM_IMG = img_ipl.width * img_ipl.height
     AIRE_MIN = NORM_IMG * AIRE_MIN_REL
 # traitement
     # Converting input image in Grey scale image
-    img_gray_ini = cv.CreateImage((img_ipl.width, img_ipl.height), 8, 1)
-    cv.CvtColor(img_ipl, img_gray_ini, cv.CV_BGR2GRAY)
+    img_gray_ini = cv2.cv.CreateImage((img_ipl.width, img_ipl.height), 8, 1)
+    cv2.cv.CvtColor(img_ipl, img_gray_ini, cv2.cv.CV_BGR2GRAY)
     # Removing Offset from image
-    img_gray_resize = cv.CreateImage((img_ipl.width - 2 * Offset[0], img_ipl.height - 2 * Offset[1]), 8, 1)
-    cv.SetImageROI(img_gray_ini, (Offset[0], Offset[1], img_ipl.width - 2 * Offset[0], img_ipl.height - 2 * Offset[1]))
-    cv.Copy(img_gray_ini, img_gray_resize)
+    img_gray_resize = cv2.cv.CreateImage((img_ipl.width - 2 * Offset[0], img_ipl.height - 2 * Offset[1]), 8, 1)
+    cv2.cv.SetImageROI(img_gray_ini, (Offset[0], Offset[1], img_ipl.width - 2 * Offset[0], img_ipl.height - 2 * Offset[1]))
+    cv2.cv.Copy(img_gray_ini, img_gray_resize)
 #    #creat image used for treatment
-    img_gray = cv.CreateImage((img_gray_resize.width, img_gray_resize.height), 8, 1)
-    img_trait = cv.CreateImage((img_gray.width, img_gray.height), 8, 1)
+    img_gray = cv2.cv.CreateImage((img_gray_resize.width, img_gray_resize.height), 8, 1)
+    img_trait = cv2.cv.CreateImage((img_gray.width, img_gray.height), 8, 1)
     # image used for treatment is the same than img_gray_resize
-    cv.Copy(img_gray_resize, img_gray)
+    cv2.cv.Copy(img_gray_resize, img_gray)
     # Img is smooth with asymetric kernel
-    cv.Smooth(img_gray, img_gray, param1=11, param2=9)
-    cv.Canny(img_gray, img_trait, 40, 60)
+    cv2.cv.Smooth(img_gray, img_gray, param1=11, param2=9)
+    cv2.cv.Canny(img_gray, img_trait, 40, 60)
 # Laplacian treatment
     # Creating buffer image
-    img_lap_ini = cv.CreateImage((img_gray.width, img_gray.height), 32, 1)
-    img_lap = cv.CreateImage((img_lap_ini.width - 2 * Offset[0], img_lap_ini.height - 2 * Offset[1]), 32, 1)
+    img_lap_ini = cv2.cv.CreateImage((img_gray.width, img_gray.height), 32, 1)
+    img_lap = cv2.cv.CreateImage((img_lap_ini.width - 2 * Offset[0], img_lap_ini.height - 2 * Offset[1]), 32, 1)
     # Creating buffer img
-    img_lap_tmp = cv.CreateImage((img_lap.width, img_lap.height), 32, 1)
+    img_lap_tmp = cv2.cv.CreateImage((img_lap.width, img_lap.height), 32, 1)
     # Computing laplacian
-    cv.Laplace(img_gray, img_lap_ini, 5)
+    cv2.cv.Laplace(img_gray, img_lap_ini, 5)
     # Applying Offset to avoid border effect
-    cv.SetImageROI(img_lap_ini, (Offset[0], Offset[1], img_lap_ini.width - 2 * Offset[0], img_lap_ini.height - 2 * Offset[1]))
+    cv2.cv.SetImageROI(img_lap_ini, (Offset[0], Offset[1], img_lap_ini.width - 2 * Offset[0], img_lap_ini.height - 2 * Offset[1]))
     # Copying laplacian treated image to final laplacian image
-    cv.Copy(img_lap_ini, img_lap)
+    cv2.cv.Copy(img_lap_ini, img_lap)
     # Apply an asymetrique  smoothing
-    cv.Smooth(img_lap, img_lap, param1=21, param2=11)
+    cv2.cv.Smooth(img_lap, img_lap, param1=21, param2=11)
     # Define the Kernel for closing algorythme
-    MKernel = cv.CreateStructuringElementEx(7, 3, 3, 1, cv.CV_SHAPE_RECT)
+    MKernel = cv2.cv.CreateStructuringElementEx(7, 3, 3, 1, cv2.cv.CV_SHAPE_RECT)
     # Closing contour procedure
-    cv.MorphologyEx(img_lap, img_lap, img_lap_tmp, MKernel, cv.CV_MOP_CLOSE, NiteClosing)
+    cv2.cv.MorphologyEx(img_lap, img_lap, img_lap_tmp, MKernel, cv2.cv.CV_MOP_CLOSE, NiteClosing)
     # Conveting img in 8bit image
-    img_lap8_ini = cv.CreateImage((img_lap.width, img_lap.height), 8, 1)
-    cv.Convert(img_lap, img_lap8_ini)
+    img_lap8_ini = cv2.cv.CreateImage((img_lap.width, img_lap.height), 8, 1)
+    cv2.cv.Convert(img_lap, img_lap8_ini)
     # Add white border to image
     mat_bord = WhiteBorder(np.asarray(img_lap8_ini[:]), XSize, YSize)
-    img_lap8 = cv.CreateImage((img_lap.width + 2 * XSize, img_lap.height + 2 * YSize), 8, 1)
-    img_lap8 = cv.fromarray(mat_bord)
+    img_lap8 = cv2.cv.CreateImage((img_lap.width + 2 * XSize, img_lap.height + 2 * YSize), 8, 1)
+    img_lap8 = cv2.cv.fromarray(mat_bord)
     # Compute threshold
     seuil_tmp = Seuil_var(img_lap8)
     # If Seuil_tmp is not null
@@ -112,20 +123,20 @@ def find_loop(input_data, IterationClosing=6):
     else :
         seuil = 20
     # Compute thresholded image
-    img_lap_bi = cv.CreateImage((img_lap8.width, img_lap8.height), 8, 1)
-    img_lap_color = cv.CreateImage((img_lap8.width, img_lap8.height), 8, 3)
-    img_trait_lap = cv.CreateImage((img_lap8.width, img_lap8.height), 8, 1)
+    img_lap_bi = cv2.cv.CreateImage((img_lap8.width, img_lap8.height), 8, 1)
+    img_lap_color = cv2.cv.CreateImage((img_lap8.width, img_lap8.height), 8, 3)
+    img_trait_lap = cv2.cv.CreateImage((img_lap8.width, img_lap8.height), 8, 1)
     # Compute thresholded image
-    cv.Threshold(img_lap8, img_lap_bi, seuil, 255, cv.CV_THRESH_BINARY)
+    cv2.cv.Threshold(img_lap8, img_lap_bi, seuil, 255, cv2.cv.CV_THRESH_BINARY)
     # Gaussian smoothing on laplacian
-    cv.Smooth(img_lap_bi, img_lap_bi, param1=11, param2=11)
+    cv2.cv.Smooth(img_lap_bi, img_lap_bi, param1=11, param2=11)
     # Convert grayscale laplacian image to binarie image using "seuil" as threshold value
-    cv.Threshold(img_lap_bi, img_lap_bi, 1, 255, cv.CV_THRESH_BINARY_INV)
-    cv.CvtColor(img_lap_bi, img_lap_color, cv.CV_GRAY2BGR)
+    cv2.cv.Threshold(img_lap_bi, img_lap_bi, 1, 255, cv2.cv.CV_THRESH_BINARY_INV)
+    cv2.cv.CvtColor(img_lap_bi, img_lap_color, cv2.cv.CV_GRAY2BGR)
     # Compute edge in laplacian image
-    cv.Canny(img_lap_bi, img_trait_lap, 0, 2)
+    cv2.cv.Canny(img_lap_bi, img_trait_lap, 0, 2)
     # Find contour
-    seqlapbi = cv.FindContours(img_trait_lap, cv.CreateMemStorage(), cv.CV_RETR_TREE, cv.CV_CHAIN_APPROX_SIMPLE)
+    seqlapbi = cv2.cv.FindContours(img_trait_lap, cv2.cv.CreateMemStorage(), cv2.cv.CV_RETR_TREE, cv2.cv.CV_CHAIN_APPROX_SIMPLE)
     # contour is filtered
     try :
         contour_list = parcourt_contour(seqlapbi, img_lap_color)
@@ -142,6 +153,12 @@ def find_loop(input_data, IterationClosing=6):
         point_shift = integreCont(indice, contour_list[0])
 #     The coordinate in original image are computed taken into account Offset and white bordure
         point = (point_shift[0], point_shift[1] + 2 * Offset[0] - XSize, point_shift[2] + 2 * Offset[1] - YSize)
+        if rotation is not None:
+            centX = img_ipl.width / 2
+            centY = img_ipl.height / 2
+            distX = centX - point[1]
+            distY = centY - point[2]
+            point = (point[0], centX - distY, centY + distX)
     else:
         # Else no loop is detected
         point = ("No loop detected", -1, -1)
@@ -172,7 +189,7 @@ def parcourt_contour(seq, img):
     niveau = 0  # used for keep in memory the current level in the tree seq
     count = 0  # used in order to count the number of kept contour
 
-    Area = cv.ContourArea(seq)
+    Area = cv2.cv.ContourArea(seq)
 
     # Compute lengh of Contour
     lengh = len(seq)
@@ -184,11 +201,11 @@ def parcourt_contour(seq, img):
         # Seq is put in buffer
         Seq_triee = seq[:]
         if(count == 1):
-            color = cv.CV_RGB(255, 0, 0)
+            color = cv2.cv.CV_RGB(255, 0, 0)
         elif(count == 2):
-            color = cv.CV_RGB(0, 255, 0)
+            color = cv2.cv.CV_RGB(0, 255, 0)
         else:
-            color = cv.CV_RGB(0, 0, 255)
+            color = cv2.cv.CV_RGB(0, 0, 255)
         # Kept contour are ordered in decreasing Area critera
         if(Area > AireMem):
             Contour_Keep.insert(0, Seq_triee)
@@ -210,7 +227,7 @@ def parcourt_contour(seq, img):
             seq = seq.h_next()
             remonte = False
             # compute Area of contour
-            Area = cv.ContourArea(seq)
+            Area = cv2.cv.ContourArea(seq)
             # Compute lengh of contour
             lengh = len(seq)
             remonte = False
@@ -229,7 +246,7 @@ def parcourt_contour(seq, img):
         # Else if there is upper contours
         elif(seq.v_prev() != None):
             # compute Area
-            Area = cv.ContourArea(seq)
+            Area = cv2.cv.ContourArea(seq)
             # Compute lengh
             lengh = len(seq)
             # The is set to upward and left
@@ -418,9 +435,9 @@ def integreCont(listInd, seq):
             distRef = distRef + dist * poids
             # Partial Area of contour is calculated
             if(indm < indp):
-                AreaTmp = cv.ContourArea(seq[indm:indp])
+                AreaTmp = cv2.cv.ContourArea(seq[indm:indp])
             else :
-                AreaTmp = cv.ContourArea(seq) - cv.ContourArea(seq[indp:indm])
+                AreaTmp = cv2.cv.ContourArea(seq) - cv2.cv.ContourArea(seq[indp:indm])
             AreaTmp = abs(AreaTmp)
             # if Partial area is lower than area criteron and the criteron mod is not Narrow or support
             if(AreaTmp < Area10 and Crit_Mod != CRIT_MOD_NARROW and Crit_Mod != CRIT_MOD_SUP):
@@ -571,14 +588,14 @@ def GetCriter(listInd, seq, indMax):
     # Depending on criteron mode the reference area is computed
     if(Crit_Mod == CRIT_MOD_LOOP) :
         if(indm < indp):
-            Norm = cv.ContourArea(seq[indm:indp])
+            Norm = cv2.cv.ContourArea(seq[indm:indp])
         else :
-            Norm = cv.ContourArea(seq) - cv.ContourArea(seq[indp:indm])
+            Norm = cv2.cv.ContourArea(seq) - cv2.cv.ContourArea(seq[indp:indm])
     elif(Crit_Mod_opt == CRIT_MOD_SUP):
         Crit_Mod = CRIT_MOD_SUP
-        Norm = cv.ContourArea(seq)
+        Norm = cv2.cv.ContourArea(seq)
     else :
-        Norm = cv.ContourArea(seq)
+        Norm = cv2.cv.ContourArea(seq)
     return Norm
 def _filter2(tuple, x):
     """

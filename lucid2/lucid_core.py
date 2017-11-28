@@ -1,7 +1,17 @@
 #! /usr/bin/env python
-import numpy as np
-import cv
+import os
 import cv2
+import math
+import pylab
+import shutil
+import tempfile
+import scipy.misc
+import numpy as np
+
+import matplotlib
+matplotlib.use('Qt4Agg')
+import matplotlib.pyplot as plt
+
 # import sys
 
 # definition des variables Global :
@@ -31,7 +41,7 @@ CRITERON_DY_LINEARITY = 90 / MICRON_PER_PIXEL
 CRITERON_DY_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DX_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DY_LOOP_SUP2 = 150 / MICRON_PER_PIXEL
-def find_loop(input_data, IterationClosing=6, rotation=None):
+def find_loop(input_data, IterationClosing=1, rotation=None, debug=False):
     """
       This function detect support (or loop) and return the coordinates if there is a detection,
       and -1 if not.
@@ -41,6 +51,14 @@ def find_loop(input_data, IterationClosing=6, rotation=None):
           'Coord' or 'No loop detected depending if loop was detected or not. If no loop was
            detected coordinate X and coordinate y take the value -1.
     """
+# Archive the image
+    if debug:
+        archiveDir = "/scisoft/users/svensson/tmp"
+        (file_descriptor, fileBase) = tempfile.mkstemp(prefix="lucid_id29_", dir=archiveDir)
+        os.close(file_descriptor)
+        suffix = os.path.splitext(input_data)[1]
+        shutil.copy(input_data, fileBase + suffix)
+        os.remove(os.path.join(archiveDir, fileBase))
 # Definition variable Global
     global AIRE_MIN_REL
     global AIRE_MIN
@@ -53,6 +71,13 @@ def find_loop(input_data, IterationClosing=6, rotation=None):
             # Image filename is passed
             if rotation is None:
                 img_ipl = cv2.cv.LoadImageM(input_data)
+                img0 = cv2.imread(input_data)
+                # Threshold image
+                # print(img_ipl)
+                cv2.cv.Threshold(img_ipl, img_ipl, 25, 255, cv2.cv.CV_THRESH_TOZERO)
+#                cv2.("Smooth", np.asarray(thresh4[:]))
+#                cv2.waitKeyimshow(0)
+#                img_ipl = cv2.cv.fromarray(thresh4)
             else:
                 img0 = cv2.imread(input_data)
                 rows, cols, layers = img0.shape
@@ -88,6 +113,8 @@ def find_loop(input_data, IterationClosing=6, rotation=None):
     cv2.cv.Copy(img_gray_resize, img_gray)
     # Img is smooth with asymetric kernel
     cv2.cv.Smooth(img_gray, img_gray, param1=11, param2=9)
+#    cv2.imshow("Smooth", np.asarray(img_gray[:]))
+#    cv2.waitKey(0)
     cv2.cv.Canny(img_gray, img_trait, 40, 60)
 # Laplacian treatment
     # Creating buffer image
@@ -102,7 +129,10 @@ def find_loop(input_data, IterationClosing=6, rotation=None):
     # Copying laplacian treated image to final laplacian image
     cv2.cv.Copy(img_lap_ini, img_lap)
     # Apply an asymetrique  smoothing
+    # cv2.cv.Smooth(img_lap, img_lap, param1=21, param2=11)
     cv2.cv.Smooth(img_lap, img_lap, param1=21, param2=11)
+#    cv2.imshow("Smooth", np.asarray(img_lap[:]))
+#    cv2.waitKey(0)
     # Define the Kernel for closing algorythme
     MKernel = cv2.cv.CreateStructuringElementEx(7, 3, 3, 1, cv2.cv.CV_SHAPE_RECT)
     # Closing contour procedure
@@ -110,10 +140,20 @@ def find_loop(input_data, IterationClosing=6, rotation=None):
     # Conveting img in 8bit image
     img_lap8_ini = cv2.cv.CreateImage((img_lap.width, img_lap.height), 8, 1)
     cv2.cv.Convert(img_lap, img_lap8_ini)
+    # cv2.imshow("Convert", np.asarray(img_lap[:]))
+    # cv2.waitKey(0)
     # Add white border to image
+#    print(XSize, YSize)
     mat_bord = WhiteBorder(np.asarray(img_lap8_ini[:]), XSize, YSize)
     img_lap8 = cv2.cv.CreateImage((img_lap.width + 2 * XSize, img_lap.height + 2 * YSize), 8, 1)
+    # print(type(mat_bord))
+    # print(type(img0))
+    # print(type(img_lap8))
+    # cv2.imshow("Test", np.asarray(img_lap8[:]))
+    # cv2.waitKey(0)
     img_lap8 = cv2.cv.fromarray(mat_bord)
+#    cv2.imshow("WhiteBorder", np.asarray(img_lap8[:]))
+#    cv2.waitKey(0)
     # Compute threshold
     seuil_tmp = Seuil_var(img_lap8)
     # If Seuil_tmp is not null
@@ -135,6 +175,8 @@ def find_loop(input_data, IterationClosing=6, rotation=None):
     cv2.cv.CvtColor(img_lap_bi, img_lap_color, cv2.cv.CV_GRAY2BGR)
     # Compute edge in laplacian image
     cv2.cv.Canny(img_lap_bi, img_trait_lap, 0, 2)
+#    cv2.imshow("Canny", np.asarray(img_trait_lap[:]))
+#    cv2.waitKey(0)
     # Find contour
     seqlapbi = cv2.cv.FindContours(img_trait_lap, cv2.cv.CreateMemStorage(), cv2.cv.CV_RETR_TREE, cv2.cv.CV_CHAIN_APPROX_SIMPLE)
     # contour is filtered
@@ -153,18 +195,38 @@ def find_loop(input_data, IterationClosing=6, rotation=None):
         point_shift = integreCont(indice, contour_list[0])
 #     The coordinate in original image are computed taken into account Offset and white bordure
         point = (point_shift[0], point_shift[1] + 2 * Offset[0] - XSize, point_shift[2] + 2 * Offset[1] - YSize)
-        if rotation is not None:
-            centX = img_ipl.width / 2
-            centY = img_ipl.height / 2
-            distX = centX - point[1]
-            distY = centY - point[2]
-            point = (point[0], centX - distY, centY + distX)
+        # Mask the lower and upper right corners
+        if point_shift[1] < img_lap_color.width * 0.2:
+            if point_shift[2] < img_lap_color.height * 0.2 or \
+               (img_lap_color.height - point_shift[2]) < img_lap_color.height * 0.2:
+                # No loop is detected
+                point = ("No loop detected", -1, -1)
+        else:
+            if rotation is not None:
+                centX = img_ipl.width / 2
+                centY = img_ipl.height / 2
+                distX = centX - point[1]
+                distY = centY - point[2]
+                point = (point[0], centX - distY, centY + distX)
+            if debug:
+                image = scipy.misc.imread(input_data, flatten=True)
+                imgshape = image.shape
+                extent = (0, imgshape[1], 0, imgshape[0])
+                implot = plt.imshow(image, extent=extent, cmap='gray')
+                plt.title(fileBase)
+                if point[0] == 'Coord':
+                    xPos = point[1]
+                    yPos = imgshape[0] - point[2]
+                    plt.plot(xPos, yPos, marker='+', markeredgewidth=2,
+                             markersize=20, color='red')
+                newFileName = os.path.join(archiveDir, fileBase + "_marked.png")
+                print "Saving image to " + newFileName
+                plt.savefig(newFileName)
+                plt.close()
+
     else:
         # Else no loop is detected
         point = ("No loop detected", -1, -1)
-        Aire_Max = 0
-
-
 
     return point
 def parcourt_contour(seq, img):
@@ -189,10 +251,14 @@ def parcourt_contour(seq, img):
     niveau = 0  # used for keep in memory the current level in the tree seq
     count = 0  # used in order to count the number of kept contour
 
-    Area = cv2.cv.ContourArea(seq)
 
     # Compute lengh of Contour
     lengh = len(seq)
+    # print(lengh)
+    if lengh > 0:
+        Area = cv2.cv.ContourArea(seq)
+    else:
+        Area = 0
 
     # if Current contour lengh or Aire is upper than reference
     if(lengh > LENGH_MIN or Area > AIRE_MIN):
@@ -215,69 +281,72 @@ def parcourt_contour(seq, img):
     # While there is contour to check
     while Still_Contour :
         # if there is contour downward and side  is downward
-        if (seq.v_next() != None and remonte == False):
-            # Go to next contour downward
-            seq = seq.v_next()
-            # increase level
-            niveau = niveau + 1
-
-        # Else if there is other contour of same level and cover is from left to right
-        elif(seq.h_next() != None and gauche == True):
-            # New sequence is the next in horizontal.
-            seq = seq.h_next()
-            remonte = False
-            # compute Area of contour
-            Area = cv2.cv.ContourArea(seq)
-            # Compute lengh of contour
-            lengh = len(seq)
-            remonte = False
-            # If lengh or Area is upper limit value contour is kept
-            if(lengh > LENGH_MIN or Area > AIRE_MIN):
-                count = count + 1
-                Seq_triee = seq[:]
-                # If contour have the maximal area
-                if(Area > AireMem):
-                    # Contour is save in the first indexe
-                    Contour_Keep.insert(0, Seq_triee)
-                    AireMem = Area
-                # Else contour is save in last position
-                else:
-                    Contour_Keep.append(Seq_triee)
-        # Else if there is upper contours
-        elif(seq.v_prev() != None):
-            # compute Area
-            Area = cv2.cv.ContourArea(seq)
-            # Compute lengh
-            lengh = len(seq)
-            # The is set to upward and left
-            remonte = True
-            gauche = True
-            # Level is decrease by one
-            niveau = niveau - 1
-            # If lengh or Area is upper limit value contour is kept
-            if(lengh > LENGH_MIN or Area > AIRE_MIN):
-                count = count + 1
-                Seq_triee = seq[:]
-                # If contour have the maximal area
-                if(Area > AireMem):
-                    # Contour is save in the first indexe
-                    Contour_Keep.insert(0, Seq_triee)
-                    AireMem = Area
-                # Else contour is save in last position
-                else:
-                    Contour_Keep.append(Seq_triee)
-            seq = seq.v_prev()
-        # Else if there  horizontal previous contours
-        elif seq.h_prev() != None:
-            # Next contour is the horizontal previous one
-            seq = seq.h_prev()
-            # Cover side is changed
-            gauche = False
-            remonte = True
-        # else
-        else :
-            # All contours are covered
+        if len(seq) == 0:
             Still_Contour = False
+        else:
+            if seq.v_next() != None and remonte == False:
+                # Go to next contour downward
+                seq = seq.v_next()
+                # increase level
+                niveau = niveau + 1
+
+            # Else if there is other contour of same level and cover is from left to right
+            elif(seq.h_next() != None and gauche == True):
+                # New sequence is the next in horizontal.
+                seq = seq.h_next()
+                remonte = False
+                # compute Area of contour
+                Area = cv2.cv.ContourArea(seq)
+                # Compute lengh of contour
+                lengh = len(seq)
+                remonte = False
+                # If lengh or Area is upper limit value contour is kept
+                if(lengh > LENGH_MIN or Area > AIRE_MIN):
+                    count = count + 1
+                    Seq_triee = seq[:]
+                    # If contour have the maximal area
+                    if(Area > AireMem):
+                        # Contour is save in the first indexe
+                        Contour_Keep.insert(0, Seq_triee)
+                        AireMem = Area
+                    # Else contour is save in last position
+                    else:
+                        Contour_Keep.append(Seq_triee)
+            # Else if there is upper contours
+            elif(seq.v_prev() != None):
+                # compute Area
+                Area = cv2.cv.ContourArea(seq)
+                # Compute lengh
+                lengh = len(seq)
+                # The is set to upward and left
+                remonte = True
+                gauche = True
+                # Level is decrease by one
+                niveau = niveau - 1
+                # If lengh or Area is upper limit value contour is kept
+                if(lengh > LENGH_MIN or Area > AIRE_MIN):
+                    count = count + 1
+                    Seq_triee = seq[:]
+                    # If contour have the maximal area
+                    if(Area > AireMem):
+                        # Contour is save in the first indexe
+                        Contour_Keep.insert(0, Seq_triee)
+                        AireMem = Area
+                    # Else contour is save in last position
+                    else:
+                        Contour_Keep.append(Seq_triee)
+                seq = seq.v_prev()
+            # Else if there  horizontal previous contours
+            elif seq.h_prev() != None:
+                # Next contour is the horizontal previous one
+                seq = seq.h_prev()
+                # Cover side is changed
+                gauche = False
+                remonte = True
+            # else
+            else :
+                # All contours are covered
+                Still_Contour = False
     return Contour_Keep
 def WhiteBorder(img, XSize, YSize):
     """
@@ -319,6 +388,9 @@ def Seuil_var(img):
         i = i + 1
     while ((hist[i] - hist[i - 1] < 0 or (hist[i] - hist[i - 1]) / hist[i - 1] > 0.1 or hist[i] > 0.01 * Norm) and i < len(hist) - 1):
         i = i + 1
+        if hist[i - 1] == 0:
+            return 0
+
     if(i == len(hist) - 1):
         seuil = 0
 

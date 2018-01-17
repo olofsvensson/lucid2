@@ -1,7 +1,20 @@
 #! /usr/bin/env python
-import numpy as np
+
+import matplotlib
+matplotlib.use('Qt4Agg')
+import matplotlib.pyplot as plt
+
+import os
 import cv
-import sys
+import math
+import pylab
+import shutil
+import tempfile
+import scipy.misc
+import numpy as np
+
+
+# import sys
 
 # definition des variables Global :
 
@@ -30,7 +43,8 @@ CRITERON_DY_LINEARITY = 90 / MICRON_PER_PIXEL
 CRITERON_DY_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DX_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DY_LOOP_SUP2 = 150 / MICRON_PER_PIXEL
-def find_loop(input_data,IterationClosing=6):
+#def find_loop(filename,IterationClosing=6):
+def find_loop(filename, debug=True, pixels_per_mm_horizontal=None, chi_angle=0, IterationClosing=6):
      """
         This function detect support (or loop) and return the coordinates if there is a detection,
         and -1 if not.
@@ -40,6 +54,15 @@ def find_loop(input_data,IterationClosing=6):
              'Coord' or 'No loop detected depending if loop was detected or not. If no loop was
               detected coordinate X and coordinate y take the value -1.
      """
+# Archive the image
+     debug=False
+     if debug:
+        archiveDir = "/data/id29/inhouse/opid291/snapshots"
+        (file_descriptor, fileBase) = tempfile.mkstemp(prefix="lucid2_id29_", dir=archiveDir)
+        os.close(file_descriptor)
+        suffix = os.path.splitext(filename)[1]
+        shutil.copy(filename, fileBase + suffix)
+        os.remove(os.path.join(archiveDir, fileBase))
 #Definition variable Global
      global AIRE_MIN_REL 
      global AIRE_MIN
@@ -48,17 +71,11 @@ def find_loop(input_data,IterationClosing=6):
      global pointRef
 #Chargement image
      try :
-       if type(input_data) == str:
-           #Image filename is passed
-           img_ipl= cv.LoadImageM(input_data)
-       elif type(input_data) == np.ndarray:
-           img_ipl = cv.fromarray(input_data)
-       else:
-           print "ERROR : Input image could not be opened, check format or path"
-           return ("ERROR : Input image could not be opened, check format or path",-10,-10)
+       img_ipl= cv.LoadImageM(filename)
      except:
        print "ERROR : Input image could not be opened, check format or path"
        return ("ERROR : Input image could not be opened, check format or path",-10,-10)
+     cv.Threshold(img_ipl, img_ipl, 25, 255, cv.CV_THRESH_TOZERO)
      img_cont=img_ipl # img used for 
      NORM_IMG=img_ipl.width*img_ipl.height
      AIRE_MIN=NORM_IMG*AIRE_MIN_REL
@@ -142,11 +159,31 @@ def find_loop(input_data,IterationClosing=6):
        point_shift=integreCont(indice,contour_list[0])
 #      The coordinate in original image are computed taken into account Offset and white bordure
        point=(point_shift[0],point_shift[1]+2*Offset[0]-XSize,point_shift[2]+2*Offset[1]-YSize)
+       # Mask the lower and upper right corners
+       if point_shift[1] < img_lap_color.width * 0.2:
+           if point_shift[2] < img_lap_color.height * 0.2 or \
+              (img_lap_color.height - point_shift[2]) < img_lap_color.height * 0.2:
+               # No loop is detected
+               point = ("No loop detected", -1, -1)
+       else:
+           if debug:
+                image = scipy.misc.imread(filename, flatten=True)
+                imgshape = image.shape
+                extent = (0, imgshape[1], 0, imgshape[0])
+                implot = plt.imshow(image, extent=extent, cmap='gray')
+                plt.title(fileBase)
+                if point[0] == 'Coord':
+                    xPos = point[1]
+                    yPos = imgshape[0] - point[2]
+                    plt.plot(xPos, yPos, marker='+', markeredgewidth=2,
+                         markersize=20, color='red')
+                newFileName = os.path.join(archiveDir, fileBase + "_marked.png")
+                # print "Saving image to " + newFileName
+                plt.savefig(newFileName)
+                plt.close()
      else:
        #Else no loop is detected
        point = ("No loop detected",-1,-1)
-       Aire_Max=0 
-
 
 
      return point
@@ -376,8 +413,6 @@ def integreCont(listInd,seq):
    #buffer initialisation
    seq_tmp=[]
    #iteration number initialisation
-   Xcib = None
-   Ycib = None
    Nite=0
    search = True
    #Y initialisation
@@ -436,13 +471,9 @@ def integreCont(listInd,seq):
       elif(AreaTmp>Area10 and Crit_Mod != CRIT_MOD_NARROW and Crit_Mod != CRIT_MOD_SUP):
         # the loop is ended in order to avoid minimal contous abscissa interference
         search =False
-      if Xcib is not None and Ycib is not None:
-          Xcib=int(Xcib)
-          Ycib=int(Ycib)
-   if Xcib is None or Ycib is None:
-       return ("No loop detected",-1,-1)
-   else:
-       return ("Coord",Xcib,Ycib)
+      Xcib=int(Xcib)
+      Ycib=int(Ycib)              
+   return ("Coord",Xcib,Ycib)         
 def GetCriter(listInd,seq,indMax):
    """ 
    This fonction use contour to determine the type of support and the type of criter to use for get point coord. The determination is based on the shape of counter, specialy the width of counter versus abscissa. There is 4 different Type. Narrow, wich is for Narrow support. SUP wich for support. Loop for     loop, all loop are not detected in this categorie, only one wich have a principal support. And defaut value wich is for all not detected support.

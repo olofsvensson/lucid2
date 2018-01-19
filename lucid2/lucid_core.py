@@ -70,11 +70,13 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
         if type(input_data) == str:
             # Image filename is passed
             if rotation is None:
-                img_ipl = cv2.cv.LoadImageM(input_data)
-                img0 = cv2.imread(input_data)
+                if opencv2:
+                    img_ipl = cv2.cv.LoadImageM(input_data)
+                else:
+                    img_ipl = cv2.imread(input_data)
                 # Threshold image
                 # print(img_ipl)
-                cv2.cv.Threshold(img_ipl, img_ipl, 25, 255, cv2.cv.CV_THRESH_TOZERO)
+                # cv2.cv.Threshold(img_ipl, img_ipl, 25, 255, cv2.cv.CV_THRESH_TOZERO)
 #                cv2.("Smooth", np.asarray(thresh4[:]))
 #                cv2.waitKeyimshow(0)
 #                img_ipl = cv2.cv.fromarray(thresh4)
@@ -252,10 +254,13 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
     if opencv2:    
         seqlapbi = cv2.cv.FindContours(img_trait_lap, cv2.cv.CreateMemStorage(), cv2.cv.CV_RETR_TREE, cv2.cv.CV_CHAIN_APPROX_SIMPLE)
     else:
-        seqlapbi = cv2.findContours(img_trait_lap, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(img_trait_lap, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
     # contour is filtered
     try :
-        contour_list = parcourt_contour(seqlapbi, img_lap_color)
+        if opencv2:    
+            contour_list = parcourt_contour(seqlapbi, img_lap_color)
+        else:
+            contour_list = parcourt_contour_opencv3(contours, img_lap_color)
     except :
         raise
 #     If error is traped then there is no loop detected
@@ -359,6 +364,128 @@ def parcourt_contour(seq, img):
         if len(seq) == 0:
             Still_Contour = False
         else:
+            if seq.v_next() != None and remonte == False:
+                # Go to next contour downward
+                seq = seq.v_next()
+                # increase level
+                niveau = niveau + 1
+
+            # Else if there is other contour of same level and cover is from left to right
+            elif(seq.h_next() != None and gauche == True):
+                # New sequence is the next in horizontal.
+                seq = seq.h_next()
+                remonte = False
+                # compute Area of contour
+                Area = cv2.cv.ContourArea(seq)
+                # Compute lengh of contour
+                lengh = len(seq)
+                remonte = False
+                # If lengh or Area is upper limit value contour is kept
+                if(lengh > LENGH_MIN or Area > AIRE_MIN):
+                    count = count + 1
+                    Seq_triee = seq[:]
+                    # If contour have the maximal area
+                    if(Area > AireMem):
+                        # Contour is save in the first indexe
+                        Contour_Keep.insert(0, Seq_triee)
+                        AireMem = Area
+                    # Else contour is save in last position
+                    else:
+                        Contour_Keep.append(Seq_triee)
+            # Else if there is upper contours
+            elif(seq.v_prev() != None):
+                # compute Area
+                Area = cv2.cv.ContourArea(seq)
+                # Compute lengh
+                lengh = len(seq)
+                # The is set to upward and left
+                remonte = True
+                gauche = True
+                # Level is decrease by one
+                niveau = niveau - 1
+                # If lengh or Area is upper limit value contour is kept
+                if(lengh > LENGH_MIN or Area > AIRE_MIN):
+                    count = count + 1
+                    Seq_triee = seq[:]
+                    # If contour have the maximal area
+                    if(Area > AireMem):
+                        # Contour is save in the first indexe
+                        Contour_Keep.insert(0, Seq_triee)
+                        AireMem = Area
+                    # Else contour is save in last position
+                    else:
+                        Contour_Keep.append(Seq_triee)
+                seq = seq.v_prev()
+            # Else if there  horizontal previous contours
+            elif seq.h_prev() != None:
+                # Next contour is the horizontal previous one
+                seq = seq.h_prev()
+                # Cover side is changed
+                gauche = False
+                remonte = True
+            # else
+            else :
+                # All contours are covered
+                Still_Contour = False
+    return Contour_Keep
+def parcourt_contour_opencv3(contours, img):
+    """
+    This fonction is a seq contours filter. Contours are selectionned by applying AIRE and lengh critera.
+       
+    In : contours : np array of countours  
+    In : Image : Image where was extract seq
+    Out : list of contour
+    """
+    # Global Variable Definition
+    global AIRE_MIN_REL
+    global AIRE_MIN
+    global NORM_IMG
+    global LENGH_MIN
+    # Local Variable definition
+    Still_Contour = True  # Booleen Used for check if all contour seq is checked
+    Contour_Keep = []  # List of contour selectionned
+    AireMem = 0  # Aire buffer
+    remonte = False  # used for check the vertical cover side (upward : True ; DownWard : False)
+    gauche = True  # used for check the horizontal cover side (Right to Left : True ; Left to Right False)
+    niveau = 0  # used for keep in memory the current level in the tree seq
+    count = 0  # used in order to count the number of kept contour
+
+    indexContour = 0
+    currentSeq = contours[indexContour]
+
+    # Compute lengh of Contour
+    lengh = len(currentSeq)
+    # print(lengh)
+    if lengh > 0:
+        Area = cv2.contourArea(currentSeq)
+    else:
+        Area = 0
+
+    # if Current contour lengh or Aire is upper than reference
+    if(lengh > LENGH_MIN or Area > AIRE_MIN):
+        # increament contour kept counter
+        count = count + 1
+        # Seq is put in buffer
+        Seq_triee = seq[:]
+        if(count == 1):
+            color = cv2.cv.CV_RGB(255, 0, 0)
+        elif(count == 2):
+            color = cv2.cv.CV_RGB(0, 255, 0)
+        else:
+            color = cv2.cv.CV_RGB(0, 0, 255)
+        # Kept contour are ordered in decreasing Area critera
+        if(Area > AireMem):
+            Contour_Keep.insert(0, Seq_triee)
+            AireMem = Area
+        else:
+            Contour_Keep.append(Seq_triee)
+    # While there is contour to check
+    while Still_Contour :
+        # if there is contour downward and side  is downward
+        if len(contours) == indexContour:
+            Still_Contour = False
+        else:
+            indexContour += 1
             if seq.v_next() != None and remonte == False:
                 # Go to next contour downward
                 seq = seq.v_next()

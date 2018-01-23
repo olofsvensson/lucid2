@@ -1,9 +1,5 @@
 #! /usr/bin/env python
 
-import matplotlib
-matplotlib.use('Qt4Agg')
-import matplotlib.pyplot as plt
-
 import os
 import cv
 import math
@@ -44,7 +40,7 @@ CRITERON_DY_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DX_NARROW = 50 / MICRON_PER_PIXEL
 CRITERON_DY_LOOP_SUP2 = 150 / MICRON_PER_PIXEL
 #def find_loop(filename,IterationClosing=6):
-def find_loop(filename, debug=True, pixels_per_mm_horizontal=None, chi_angle=0, IterationClosing=6):
+def find_loop(filename, debug=True, pixels_per_mm_horizontal=None, chi_angle=0, IterationClosing=6, archiveDir=None, lowThreshold=25):
      """
         This function detect support (or loop) and return the coordinates if there is a detection,
         and -1 if not.
@@ -55,9 +51,8 @@ def find_loop(filename, debug=True, pixels_per_mm_horizontal=None, chi_angle=0, 
               detected coordinate X and coordinate y take the value -1.
      """
 # Archive the image
-     debug=False
-     if debug:
-        archiveDir = "/data/id29/inhouse/opid291/snapshots"
+     #debug=False
+     if archiveDir is not None:
         (file_descriptor, fileBase) = tempfile.mkstemp(prefix="lucid2_id29_", dir=archiveDir)
         os.close(file_descriptor)
         suffix = os.path.splitext(filename)[1]
@@ -75,7 +70,8 @@ def find_loop(filename, debug=True, pixels_per_mm_horizontal=None, chi_angle=0, 
      except:
        print "ERROR : Input image could not be opened, check format or path"
        return ("ERROR : Input image could not be opened, check format or path",-10,-10)
-     cv.Threshold(img_ipl, img_ipl, 25, 255, cv.CV_THRESH_TOZERO)
+     if lowThreshold is not None:
+       cv.Threshold(img_ipl, img_ipl, lowThreshold, 255, cv.CV_THRESH_TOZERO)
      img_cont=img_ipl # img used for 
      NORM_IMG=img_ipl.width*img_ipl.height
      AIRE_MIN=NORM_IMG*AIRE_MIN_REL
@@ -166,19 +162,21 @@ def find_loop(filename, debug=True, pixels_per_mm_horizontal=None, chi_angle=0, 
                # No loop is detected
                point = ("No loop detected", -1, -1)
        else:
-           if debug:
+           if archiveDir is not None:
+                import matplotlib
+                import matplotlib.pyplot as plt
                 image = scipy.misc.imread(filename, flatten=True)
                 imgshape = image.shape
                 extent = (0, imgshape[1], 0, imgshape[0])
                 implot = plt.imshow(image, extent=extent, cmap='gray')
-                plt.title(fileBase)
+                plt.title(filename)
                 if point[0] == 'Coord':
                     xPos = point[1]
                     yPos = imgshape[0] - point[2]
                     plt.plot(xPos, yPos, marker='+', markeredgewidth=2,
                          markersize=20, color='red')
                 newFileName = os.path.join(archiveDir, fileBase + "_marked.png")
-                # print "Saving image to " + newFileName
+                print("Saving image to " + newFileName)
                 plt.savefig(newFileName)
                 plt.close()
      else:

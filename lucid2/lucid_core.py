@@ -92,7 +92,7 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
                 else:
                     img_ipl = imgRotated
         elif type(input_data) == np.ndarray:
-            #img_ipl = cv2.cv.fromarray(input_data)
+            # img_ipl = cv2.cv.fromarray(input_data)
             img_ipl = input_data
         else:
             print("ERROR : Input image could not be opened, check format or path")
@@ -102,7 +102,7 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
         print("ERROR : Input image could not be opened, check format or path")
         return ("ERROR : Input image could not be opened, check format or path", -10, -10)
     if opencv2:
-        NORM_IMG = img_ipl.width * img_ipl.height        
+        NORM_IMG = img_ipl.width * img_ipl.height
     else:
         rows, cols, layers = img_ipl.shape
         NORM_IMG = rows * cols
@@ -127,10 +127,10 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
         cv2.cv.Copy(img_gray_ini, img_gray_resize)
 #         cv2.imshow("img_gray_resize", np.asarray(img_gray_resize[:]))
     else:
-        img_gray_resize = img_gray_ini[Offset[0]:rows - 2 * Offset[0],Offset[1]:cols- 2 * Offset[1]]
+        img_gray_resize = img_gray_ini[Offset[0]:rows - 2 * Offset[0], Offset[1]:cols - 2 * Offset[1]]
 #         cv2.imshow("img_gray_resize", np.asarray(img_gray_resize[:]))
 #     cv2.waitKey(0)
-        
+
 #    #creat image used for treatment
     if opencv2:
         img_gray = cv2.cv.CreateImage((img_gray_resize.width, img_gray_resize.height), 8, 1)
@@ -142,10 +142,10 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
 #         cv2.imshow("img_gray_smooth", np.asarray(img_gray[:]))
     else:
         img_gray = img_gray_resize[:]
-        img_gray = cv2.GaussianBlur(img_gray_resize, ksize=(11,9), sigmaX=0)
+        img_gray = cv2.GaussianBlur(img_gray_resize, ksize=(11, 9), sigmaX=0)
 #         cv2.imshow("img_gray_smooth", np.asarray(img_gray[:]))
 #     cv2.waitKey(0)
-        
+
     if opencv2:
         cv2.cv.Canny(img_gray, img_trait, 40, 60)
 #         cv2.imshow("img_trait", np.asarray(img_trait[:]))
@@ -175,12 +175,12 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
         # Computing laplacian
         img_lap_ini = cv2.Laplacian(img_gray, cv2.CV_64F, ksize=5)
         # Applying Offset to avoid border effect
-        img_lap = img_lap_ini[Offset[0]:rows - 2 * Offset[0],Offset[1]:cols- 2 * Offset[1]]
+        img_lap = img_lap_ini[Offset[0]:rows - 2 * Offset[0], Offset[1]:cols - 2 * Offset[1]]
         # Apply an asymetrique  smoothing
-        img_lap = cv2.GaussianBlur(img_lap, ksize=(21,11), sigmaX=0)
+        img_lap = cv2.GaussianBlur(img_lap, ksize=(21, 11), sigmaX=0)
 #         cv2.imshow("Smooth Laplace", np.asarray(img_lap[:]))
 #     cv2.waitKey(0)
-    
+
     # Define the Kernel for closing algorythme
     if opencv2:
         MKernel = cv2.cv.CreateStructuringElementEx(7, 3, 3, 1, cv2.cv.CV_SHAPE_RECT)
@@ -193,15 +193,15 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
         cv2.cv.Convert(img_lap, img_lap8_ini)
 #         cv2.imshow("MorphologyEx Convert", np.asarray(img_lap8_ini[:]))
     else:
-        MKernel = cv2.getStructuringElement(shape=cv2.MORPH_RECT, ksize=(7,3), anchor=(3,1))
+        MKernel = cv2.getStructuringElement(shape=cv2.MORPH_RECT, ksize=(7, 3), anchor=(3, 1))
         img_lap = cv2.morphologyEx(img_lap, cv2.MORPH_CLOSE, MKernel, iterations=NiteClosing)
 #         cv2.imshow("MorphologyEx", np.asarray(img_lap[:]))
 #         cv2.waitKey(0)
         img_lap8_ini = np.uint8(img_lap)
-        img_lap8_ini[ np.where(img_lap8_ini > 254) ] = 0
+        img_lap8_ini[ np.where(img_lap8_ini > 245) ] = 0
 #         cv2.imshow("MorphologyEx Convert", np.asarray(img_lap8_ini[:]))
 #     cv2.waitKey(0)
-    
+
     # Add white border to image
     if opencv2:
         mat_bord = WhiteBorder(np.asarray(img_lap8_ini[:]), XSize, YSize)
@@ -211,7 +211,7 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
         img_lap8 = WhiteBorder(img_lap8_ini[:], XSize, YSize)
 #         cv2.imshow("WhiteBorder", np.asarray(img_lap8[:]))
 #     cv2.waitKey(0)
-    
+
     # Compute threshold
     seuil_tmp = Seuil_var(img_lap8)
     # If Seuil_tmp is not null
@@ -221,8 +221,8 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
     else :
         seuil = 20
     print("Seuil: {0}".format(seuil))
-        
-        
+
+
     # Compute thresholded image
     if opencv2:
         img_lap_bi = cv2.cv.CreateImage((img_lap8.width, img_lap8.height), 8, 1)
@@ -240,24 +240,24 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
 #         cv2.imshow("Canny", np.asarray(img_trait_lap[:]))
     else:
         # Compute thresholded image
-        img_lap_bi = np.where(img_lap8 > seuil, 255, 0).astype(np.uint8)
+        ret, img_lap_bi = cv2.threshold(img_lap8, seuil, 255, 0)
         # Gaussian smoothing on laplacian
-        img_lap_bi = cv2.GaussianBlur(img_lap_bi, ksize=(11,11), sigmaX=0)
+        img_lap_bi = cv2.GaussianBlur(img_lap_bi, ksize=(11, 11), sigmaX=0)
         # Convert grayscale laplacian image to binarie image using "seuil" as threshold value
-        img_lap_bi = np.where(img_lap_bi > 1, 0, 255).astype(np.uint8)
+        ret, img_lap_bi = cv2.threshold(img_lap_bi, 1, 255, cv2.THRESH_BINARY_INV)
         img_lap_color = img_lap_bi
         img_trait_lap = cv2.Canny(img_lap_bi, 0, 2)
 #         cv2.imshow("Canny", img_trait_lap)
 #     cv2.waitKey(0)
-    
+
     # Find contour
-    if opencv2:    
+    if opencv2:
         seqlapbi = cv2.cv.FindContours(img_trait_lap, cv2.cv.CreateMemStorage(), cv2.cv.CV_RETR_TREE, cv2.cv.CV_CHAIN_APPROX_SIMPLE)
     else:
         contours, hierarchy = cv2.findContours(img_trait_lap, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
     # contour is filtered
     try :
-        if opencv2:    
+        if opencv2:
             contour_list = parcourt_contour(seqlapbi, img_lap_color)
         else:
             contour_list = parcourt_contour_opencv3(contours, img_lap_color)
@@ -269,22 +269,30 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
 #    If there contours's list is not empty
     NCont = len(contour_list)
     if(NCont > 0):
-#     The CvSeq is inversed : X(i) became i(X)
-        indice = MapCont(contour_list[0], img_lap_color.width, img_lap_color.height)
-#     The coordinate of target is computed in the traited image
-        point_shift = integreCont(indice, contour_list[0])
+        if opencv2:
+    #     The CvSeq is inversed : X(i) became i(X)
+            rows, cols = img_lap_color.width, img_lap_color.height
+            indice = MapCont(contour_list[0], cols, rows)
+    #     The coordinate of target is computed in the traited image
+            point_shift = integreCont(indice, contour_list[0])
+        else:
+    #     The CvSeq is inversed : X(i) became i(X)
+            rows, cols = img_lap_color.shape
+            indice = MapCont_opencv3(contour_list[0], cols, rows)
+    #     The coordinate of target is computed in the traited image
+            point_shift = integreCont_opencv3(indice, contour_list[0])
 #     The coordinate in original image are computed taken into account Offset and white bordure
         point = (point_shift[0], point_shift[1] + 2 * Offset[0] - XSize, point_shift[2] + 2 * Offset[1] - YSize)
         # Mask the lower and upper right corners
-        if point_shift[1] < img_lap_color.width * 0.2:
-            if point_shift[2] < img_lap_color.height * 0.2 or \
-               (img_lap_color.height - point_shift[2]) < img_lap_color.height * 0.2:
+        if point_shift[1] < cols * 0.2:
+            if point_shift[2] < rows * 0.2 or \
+               (rows - point_shift[2]) < rows * 0.2:
                 # No loop is detected
                 point = ("No loop detected", -1, -1)
         else:
             if rotation is not None:
-                centX = img_ipl.width / 2
-                centY = img_ipl.height / 2
+                centX = cols / 2
+                centY = rows
                 distX = centX - point[1]
                 distY = centY - point[2]
                 point = (point[0], centX - distY, centY + distX)
@@ -300,7 +308,7 @@ def find_loop(input_data, IterationClosing=1, rotation=None, debug=False, opencv
                     plt.plot(xPos, yPos, marker='+', markeredgewidth=2,
                              markersize=20, color='red')
                 newFileName = os.path.join(archiveDir, fileBase + "_marked.png")
-                print "Saving image to " + newFileName
+                print("Saving image to " + newFileName)
                 plt.savefig(newFileName)
                 plt.close()
 
@@ -428,128 +436,84 @@ def parcourt_contour(seq, img):
                 # All contours are covered
                 Still_Contour = False
     return Contour_Keep
-def parcourt_contour_opencv3(contours, img):
-    """
-    This fonction is a seq contours filter. Contours are selectionned by applying AIRE and lengh critera.
-       
-    In : contours : np array of countours  
-    In : Image : Image where was extract seq
-    Out : list of contour
-    """
-    # Global Variable Definition
-    global AIRE_MIN_REL
-    global AIRE_MIN
-    global NORM_IMG
-    global LENGH_MIN
-    # Local Variable definition
-    Still_Contour = True  # Booleen Used for check if all contour seq is checked
-    Contour_Keep = []  # List of contour selectionned
-    AireMem = 0  # Aire buffer
-    remonte = False  # used for check the vertical cover side (upward : True ; DownWard : False)
-    gauche = True  # used for check the horizontal cover side (Right to Left : True ; Left to Right False)
-    niveau = 0  # used for keep in memory the current level in the tree seq
-    count = 0  # used in order to count the number of kept contour
+def parcourt_contour_opencv3(_contours, img):
+     """
+     This fonction is a seq contours filter. Contours are selectionned by applying AIRE and lengh critera.
+        
+     In : contours : List of contours  
+     In : Image : Image where was extract seq
+     Out : list of contour
+     """
+     # Global Variable Definition
+     global AIRE_MIN_REL
+     global AIRE_MIN
+     global NORM_IMG
+     global LENGH_MIN
+     contours = list(_contours)
+     # Local Variable definition
+     Still_Contour = True  # Booleen Used for check if all contour seq is checked
+     Contour_Keep = []  # List of contour selectionned
+     AireMem = 0  # Aire buffer
+     remonte = False  # used for check the vertical cover side (upward : True ; DownWard : False)
+     gauche = True  # used for check the horizontal cover side (Right to Left : True ; Left to Right False)
+     niveau = 0  # used for keep in memory the current level in the tree seq
+     count = 0  # used in order to count the number of kept contour
 
-    indexContour = 0
-    currentSeq = contours[indexContour]
+     seq = contours.pop()
+     if len(contours) > 0:
+         Still_Contour = True
+     else:
+         Still_Contour = False
+     Area = cv2.contourArea(seq)
 
-    # Compute lengh of Contour
-    lengh = len(currentSeq)
-    # print(lengh)
-    if lengh > 0:
-        Area = cv2.contourArea(currentSeq)
-    else:
-        Area = 0
+     # Compute lengh of Contour
+     lengh = len(seq)
+     print(lengh)
 
-    # if Current contour lengh or Aire is upper than reference
-    if(lengh > LENGH_MIN or Area > AIRE_MIN):
+     # if Current contour lengh or Aire is upper than reference
+     if(lengh > LENGH_MIN or Area > AIRE_MIN):
         # increament contour kept counter
         count = count + 1
         # Seq is put in buffer
-        Seq_triee = seq[:]
+        Seq_triee = seq
         if(count == 1):
-            color = cv2.cv.CV_RGB(255, 0, 0)
+          color = (255, 0, 0)
         elif(count == 2):
-            color = cv2.cv.CV_RGB(0, 255, 0)
+          color = (0, 255, 0)
         else:
-            color = cv2.cv.CV_RGB(0, 0, 255)
+          color = (0, 0, 255)
         # Kept contour are ordered in decreasing Area critera
         if(Area > AireMem):
-            Contour_Keep.insert(0, Seq_triee)
-            AireMem = Area
+          Contour_Keep.insert(0, Seq_triee)
+          AireMem = Area
         else:
-            Contour_Keep.append(Seq_triee)
-    # While there is contour to check
-    while Still_Contour :
-        # if there is contour downward and side  is downward
-        if len(contours) == indexContour:
+          Contour_Keep.append(Seq_triee)
+     # While there is contour to check
+     while Still_Contour :
+        # New sequence is the next in horizontal.
+        seq = contours.pop()
+        if len(contours) > 0:
+            Still_Contour = True
+        else:
             Still_Contour = False
-        else:
-            indexContour += 1
-            if seq.v_next() != None and remonte == False:
-                # Go to next contour downward
-                seq = seq.v_next()
-                # increase level
-                niveau = niveau + 1
-
-            # Else if there is other contour of same level and cover is from left to right
-            elif(seq.h_next() != None and gauche == True):
-                # New sequence is the next in horizontal.
-                seq = seq.h_next()
-                remonte = False
-                # compute Area of contour
-                Area = cv2.cv.ContourArea(seq)
-                # Compute lengh of contour
-                lengh = len(seq)
-                remonte = False
-                # If lengh or Area is upper limit value contour is kept
-                if(lengh > LENGH_MIN or Area > AIRE_MIN):
-                    count = count + 1
-                    Seq_triee = seq[:]
-                    # If contour have the maximal area
-                    if(Area > AireMem):
-                        # Contour is save in the first indexe
-                        Contour_Keep.insert(0, Seq_triee)
-                        AireMem = Area
-                    # Else contour is save in last position
-                    else:
-                        Contour_Keep.append(Seq_triee)
-            # Else if there is upper contours
-            elif(seq.v_prev() != None):
-                # compute Area
-                Area = cv2.cv.ContourArea(seq)
-                # Compute lengh
-                lengh = len(seq)
-                # The is set to upward and left
-                remonte = True
-                gauche = True
-                # Level is decrease by one
-                niveau = niveau - 1
-                # If lengh or Area is upper limit value contour is kept
-                if(lengh > LENGH_MIN or Area > AIRE_MIN):
-                    count = count + 1
-                    Seq_triee = seq[:]
-                    # If contour have the maximal area
-                    if(Area > AireMem):
-                        # Contour is save in the first indexe
-                        Contour_Keep.insert(0, Seq_triee)
-                        AireMem = Area
-                    # Else contour is save in last position
-                    else:
-                        Contour_Keep.append(Seq_triee)
-                seq = seq.v_prev()
-            # Else if there  horizontal previous contours
-            elif seq.h_prev() != None:
-                # Next contour is the horizontal previous one
-                seq = seq.h_prev()
-                # Cover side is changed
-                gauche = False
-                remonte = True
-            # else
-            else :
-                # All contours are covered
-                Still_Contour = False
-    return Contour_Keep
+        # compute Area of contour
+        Area = cv2.contourArea(seq)
+        # Compute lengh of contour
+        lengh = len(seq)
+        # If lengh or Area is upper limit value contour is kept
+        if(lengh > LENGH_MIN or Area > AIRE_MIN):
+           count = count + 1
+           Seq_triee = seq
+           # If contour have the maximal area
+           if(Area > AireMem):
+              # Contour is save in the first indexe
+              Contour_Keep.insert(0, Seq_triee)
+              AireMem = Area
+           # Else contour is save in last position
+           else:
+              Contour_Keep.append(Seq_triee)
+         # Else if there is upper contours
+     return Contour_Keep
 def WhiteBorder(img, XSize, YSize):
     """
     This fonction add white border to an image
@@ -618,6 +582,24 @@ def MapCont(Cont, s0, s1):
 
     for i in range(0, s0):
         result = [index for index, item in enumerate(Cont) if _filter(item, i)]
+        listInd.append(result)
+    return listInd
+def MapCont_opencv3(Cont, s0, s1):
+    """
+    This function transform a list of coordinate X(i) intoa function of coordinate i(X)
+
+    In : Cont : CvSeq : Contour represented by a sequence of point
+    In : s0 :
+    In : s1 :
+    Out : ListInd : List : function indexe(abscissa)
+
+    """
+    Min = np.zeros((s0, s1))
+    Max = np.zeros((s0, s1))
+    listInd = []
+
+    for i in range(0, s0):
+        result = [index for index, item in enumerate(Cont) if _filter_opencv3(item, i)]
         listInd.append(result)
     return listInd
 def _filter(tuple, x):
@@ -871,15 +853,236 @@ def GetCriter(listInd, seq, indMax):
     else :
         Norm = cv2.cv.ContourArea(seq)
     return Norm
-def _filter2(tuple, x):
+def _filter_opencv3(tuple, x):
     """
-    This function is used for filter tuple of coordiante. True is returned if abscissa is upper than a given value
-
-    In : tuple of float (X,Y) :  tuple of coordinate
-    In : x : float : limit value
-    Out : bool : 
+    This function is a filter which return true if the first value of tuple is equal to x
+    In : tuple : tuple to be tested
+    In : x : float, The test value
+    Out : Bool : Result of test 
     """
-    if(tuple[0] > x):
-        return True
+    if(tuple[0][0] == x):
+      return True
     else:
-        return False
+      return False
+def integreCont_opencv3(listInd, seq):
+   """
+   This fonction integrate contour, in order to extract target coordinates
+   In : listInd : list : list of indexe contour i(X) where x is the abscissa of contour point
+   In : seq : list of int tuple (X,Y) : list of point of contour
+   Out : tuple : Coordinate of the target
+   """
+   # Global variable declaration
+   global Crit_Mod
+   global CRIT_MOD_SUP
+   global CRIT_MOD_LOOP
+   global CRIT_MOD_NARROW
+   global CRIT_MOD_NOVALUE
+   global Area_Point_rel
+   # Initialize both cover indexe to the one of the maximal abscissa point of contour
+   indMax = FindPointMax(listInd)
+   indMin = FindPointMax(listInd)
+   # buffer initialisation
+   seq_tmp = []
+   # iteration number initialisation
+   Xcib = None
+   Ycib = None
+   Nite = 0
+   search = True
+   # Y initialisation
+   Y = seq[indMax][0][1]
+   # if sequence is not empty
+   if indMax != None:
+     # Get the lengh of the sequence
+     s0 = len(seq)
+     # The maximum iteration is arbitrary fixed to the half of the sequence lengh
+     NInd = s0 / 2
+     # Initialize both cover indexe to the one of the maximal abscissa point of contour
+     indp = indMax
+     indm = indMax
+     # Initialize refrence distance to zero
+     distRef = 0
+     # Initialize the maximal value of abscissa
+     Xtot = seq[indMax][0][0]
+     # Get the criter for extract coordinate point
+     Area = GetCriter_opencv3(listInd, seq, indMax)
+     Area10 = Area * Area_Point_rel
+     Nmax = s0 / 2.
+     # While coordinates point are not found and iteration max is not reached
+     while(search and Nite < Nmax):
+      Nite = Nite + 1
+      # Only one is decrease between upper index and lower index, it's the one with the lower value. Bounding condition are applied on indexes
+      if(seq[indp][0][0] > seq[indm][0][0]):
+         if(indp < s0 - 2):
+           indp = indp + 1
+         else :
+           indp = 0
+      else:
+         if(indm > 1):
+           indm = indm - 1
+         else :
+             indm = s0 - 1
+      poids = float(abs(seq[indp][0][0] - seq[indm][0][0])) / float(Xtot)
+      dist = abs(seq[indp][0][1] - seq[indm][0][1])
+      distRef = distRef + dist * poids
+      # Partial Area of contour is calculated
+      if(indm < indp):
+        AreaTmp = cv2.contourArea(seq[indm:indp])
+      else :
+        AreaTmp = cv2.contourArea(seq) - cv2.contourArea(seq[indp:indm])
+      AreaTmp = abs(AreaTmp)
+      # if Partial area is lower than area criteron and the criteron mod is not Narrow or support
+      if(AreaTmp < Area10 and Crit_Mod != CRIT_MOD_NARROW and Crit_Mod != CRIT_MOD_SUP):
+        # Coordinates are saved
+        Xcib = (seq[indm][0][0] + seq[indp][0][0]) * 0.5
+        Ycib = (seq[indm][0][1] + seq[indp][0][1]) * 0.5
+      # else if criteron mod is narrow or support and distance between current point and maximal abscissa is lower than 80 microns
+      elif((Crit_Mod == CRIT_MOD_NARROW or Crit_Mod == CRIT_MOD_SUP)and (Xtot - (seq[indm][0][0] + seq[indp][0][0]) * 0.5) < 40):
+        # Coordinates are saved
+        Xcib = (seq[indm][0][0] + seq[indp][0][0]) * 0.5
+        Ycib = (seq[indm][0][1] + seq[indp][0][1]) * 0.5
+      # else if coordinate point already found and criteron mod is not narrow nor support
+      elif(AreaTmp > Area10 and Crit_Mod != CRIT_MOD_NARROW and Crit_Mod != CRIT_MOD_SUP):
+        # the loop is ended in order to avoid minimal contous abscissa interference
+        search = False
+      if Xcib is not None and Ycib is not None:
+          Xcib = int(Xcib)
+          Ycib = int(Ycib)
+   if Xcib is None or Ycib is None:
+       return ("No loop detected", -1, -1)
+   else:
+       return ("Coord", Xcib, Ycib)
+def GetCriter_opencv3(listInd, seq, indMax):
+   """ 
+   This fonction use contour to determine the type of support and the type of criter to use for get point coord. The determination is based on the shape of counter, specialy the width of counter versus abscissa. There is 4 different Type. Narrow, wich is for Narrow support. SUP wich for support. Loop for     loop, all loop are not detected in this categorie, only one wich have a principal support. And defaut value wich is for all not detected support.
+   In[1] List of indice depenting of value of X 
+   In[2] CvSeq of main contour
+   In[3] Indice of the point of CvSeq having the Max X
+   Out [1] : Area of interrest wich will be used as reference Area
+       
+   Area critere and Detected Type are global variable
+   """
+
+#  Global variable declaration
+   global Crit_Mod
+   global CRIT_MOD_SUP
+   global CRIT_MOD_LOOP
+   global CRIT_MOD_NARROW
+   global CRIT_MOD_NOVALUE
+   Crit_Mod = CRIT_MOD_NOVALUE
+   global Area_Point_rel
+   Area_Point_rel = 0.008
+#  Local variable declaration
+   Search = True
+   Crit_Mod_opt = CRIT_MOD_NOVALUE  # Used when a possible support is detected, but loop could still be detected also.
+# If there is a Maximum in X
+   if indMax != None:
+     # Get the lengh of contours to analyse
+     s0 = len(seq)
+     NInd = s0 / 2
+     indp = indMax  # Initialisation of indice
+     indm = indMax  # Initialisation of indice
+     distRef = 0
+     Xtot = seq[indMax][0][0]  # Set Maximal value
+     DeltaY = [0]  # List of width of contour versus X
+     Xmax = [Xtot]  # List of X linked to previous list of DeltaY
+     Ymax = 0
+     Ymem = 0
+     Xmem = 12000
+     Xmin = 0
+     XminMem = Xtot
+     Xm = 600
+     XM = Xtot
+     Nite = 0
+     Narrow = False
+     Support = False
+     # Indexes of contours are cover on 600 micron or until abscissa 15 is reach or maximal iteration or a final criteron is foun
+     while (Xtot - XM) < 300 and Xm > 15 and Nite < 500 and Crit_Mod == CRIT_MOD_NOVALUE :
+        Nite = Nite + 1
+        X1 = seq[indp][0][0]  # Upper Abscissa
+        Y1 = seq[indp][0][1]  # Upper Ordinate
+        X2 = seq[indm][0][0]  # Lower Abscissa
+        Y2 = seq[indm][0][1]  # Lower Ordinate
+        Xm = (X1 + X2) * 0.5  # Mean Abscissa
+        Ym = (Y1 + Y2) * 0.5  # Mean Ordinate
+        Xd = (X1 - X2)  # Abscissa difference
+        Yd = abs(Y2 - Y1)  # Ordinate difference
+        XM = max(X1, X2)  # Abscissa Maximal
+        Xmin = min(X1, X2)  # Abscissa Minimal
+        if(Yd > Ymax) :
+         Ymax = Yd
+        # If the minimal Abscissa strongly increase during one iteration, the shape should be lineare
+        # Witch is a caracteristic of a kind of support
+        if(abs(Xmin - XminMem) > CRITERON_DX_LINEARITY and Crit_Mod_opt != CRIT_MOD_SUP) :
+          # If the step in Y corresponding is upper than 90 Micron
+          if((Ymax - Yd) > CRITERON_DY_LINEARITY) :
+            Crit_Mod = CRIT_MOD_LOOP
+            Area_Point_rel = 0.4
+          else :
+            # An option is took to Support type, but not definitly cause some loop can present this kind of shape too
+            Crit_Mod_opt = CRIT_MOD_SUP
+        # If Yd is upside the narrow limit and dx is downside the x narrow limit then it s not a narrow type
+        if(Yd > CRITERON_DY_NARROW and (Xtot - XM) < CRITERON_DX_NARROW):
+             Area_Point_rel = 0.05
+        # If the CRITERON_DX_NARROW has been cover and area_point_rel is still to the default value and no support option has been detected
+        if((Xtot - XM) > CRITERON_DX_NARROW and Area_Point_rel < 0.04 and Crit_Mod_opt != CRIT_MOD_SUP) :
+             # Then criteron is set to narrow mod
+             Crit_Mod = CRIT_MOD_NARROW
+        # If a step in Dy superior to 140 micron is detected then default value for relative area is set to 0.15
+        if(Yd > CRITERON_DEFAULT3 and Area_Point_rel < 0.1 and Crit_Mod_opt != CRIT_MOD_SUP):
+             Area_Point_rel = 0.15
+        # If a loop support is detected for the fist time
+        if(Yd > CRITERON_DY_LOOP_SUP and Crit_Mod != CRIT_MOD_LOOP):
+               Xint = 0
+               iint = 0
+               sumD = 0
+               # Search back the Dy value 50 micron back
+               while(Xint < CRITERON_DX_NARROW and iint < len(DeltaY)):
+                 Xint = Xmax[iint] - XM
+                 iint = iint + 1
+               DY25 = Yd - DeltaY[iint - 1]
+               # if the step is taller than 140 micron then mod is loop and relative area is set to 0.2
+               if(DY25 > CRITERON_DY_LOOP_SUP2) :
+                 Crit_Mod = CRIT_MOD_LOOP
+                 Area_Point_rel = 0.2
+                 indBord1 = indm
+                 indBord2 = indp
+               # Else criteron mode is set to support
+               else :
+                 Crit_Mod = CRIT_MOD_SUP
+        # The calculations made on previous indexe ar keep in memory if contour do not present irregularity
+        # if abscissa is decreasing
+        if((XM - Xmem) < 0) :
+           Xmax.insert(0, XM)
+           Xmem = XM
+           DeltaY.insert(0, Yd)
+        # else the yd value is test and keep if it's highter than saved one
+        else :
+           i = 0
+           if(Yd > DeltaY[0]):
+             while(Xmax[0] < XM):
+               i = i + 1
+               Xmax.pop(0)
+               DeltaY.pop(0)
+        # Only one is decrease between upper index and lower index, it's the one with the lower value. Bounding condition are applied on indexes
+        if(seq[indp][0][0] > seq[indm][0][0]):
+           if(indp < s0 - 2):
+             indp = indp + 1
+           else :
+             indp = 0
+        else:
+           if(indm > 1):
+             indm = indm - 1
+           else :
+             indm = s0 - 1
+     # Depending on criteron mode the reference area is computed
+     if(Crit_Mod == CRIT_MOD_LOOP) :
+       if(indm < indp):
+         Norm = cv2.contourArea(seq[indm:indp])
+       else :
+         Norm = cv2.contourArea(seq) - cv2.contourArea(seq[indp:indm])
+     elif(Crit_Mod_opt == CRIT_MOD_SUP):
+       Crit_Mod = CRIT_MOD_SUP
+       Norm = cv2.contourArea(seq)
+     else :
+       Norm = cv2.contourArea(seq)
+     return Norm

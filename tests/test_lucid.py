@@ -35,7 +35,7 @@ class Test(unittest.TestCase):
             extent = (0, imgshape[1], 0, imgshape[0])
             implot = plt.imshow(image, extent=extent)
             plt.title(fileBase)
-            result = lucid2.find_loop(filePath, opencv2=False) #, rotation=rotation)
+            result = lucid2.find_loop(filePath, opencv2=False)  # , rotation=rotation)
             print(result)
             if result[0] == 'Coord':
                 xPos = result[1]
